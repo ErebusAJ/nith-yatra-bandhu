@@ -1,13 +1,12 @@
 package utils
 
-
 import (
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -15,13 +14,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Replace these constants with your actual API credentials.
 const (
-	CLOUDFLARE_API_KEY    = "5XdlglW_vpz3X9PoPozByHhJ3PK2aSJgUCBbtKJ8"
 	CF_API_URL            = "https://api.cloudflare.com/client/v4/accounts/%v/ai/run/%v"
-	CF_MODEL              = "@cf/mistral/mistral-7b-instruct-v0.1" // e.g., "@cf/meta/llama-3.1-8b-instruct"
+	CF_MODEL              = "@cf/mistral/mistral-7b-instruct-v0.1" 
 	MAX_TOKENS            = 1800
 	DefaultTravelDuration = 3
 )
@@ -359,6 +359,13 @@ func generateItinerary(prompt, accountID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	godotenv.Load()
+	CLOUDFLARE_API_KEY := os.Getenv("CLOUDFLARE_API_KEY")
+	if CLOUDFLARE_API_KEY == ""{
+		log.Fatalf("error getting CLOUDFLARE_API_KEY")
+	}
+
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", CLOUDFLARE_API_KEY))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -370,7 +377,7 @@ func generateItinerary(prompt, accountID string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("Cloudflare API error: status %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -392,7 +399,7 @@ func generateItinerary(prompt, accountID string) (string, error) {
 // 6. Main Function: User Interaction Flow
 //
 
-func main() {
+func GeneratePlan() (string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Enter destination (e.g., 'Rome, Italy'): ")
@@ -413,23 +420,30 @@ func main() {
 	}
 
 	// Provide your API tokens/keys here (or load from environment variables)
-	mapboxToken := "pk.eyJ1IjoiYXJ5YW5zaGFybWE4MTAiLCJhIjoiY203eXRtY29yMGRvYTJpc2FoMDI5bjAxMyJ9.edEiAbWX4ZcRs6qq921oZQ"
-	tomtomApiKey := "k8wn0ShnUx6ZmuDGF9x4KCWR6bAvWmPQ"
-	cloudflareAccountID := "ab32823f1a2c6422bfa2771f82f979bc"
+	MAPBOX_TOKEN := os.Getenv("MAPBOX_TOKEN")
+	TOMTOM_API_KEY := os.Getenv("TOMTOM_API_KEY")
+	CLOUDFLARE_ACC_ID := os.Getenv("CLOUDFLARE_ACC_ID")
+	if MAPBOX_TOKEN == "" || TOMTOM_API_KEY == "" || CLOUDFLARE_ACC_ID == ""{
+		log.Fatalf("error retrieving env API keys")
+	}
 
 	fmt.Println("Collecting travel data...")
-	ragData, err := collectTravelData(location, numDays, mapboxToken, tomtomApiKey)
+	ragData, err := collectTravelData(location, numDays, MAPBOX_TOKEN, TOMTOM_API_KEY)
 	if err != nil {
 		log.Fatalf("Error collecting travel data: %v", err)
 	}
 
 	prompt := formatPrompt(ragData, userQuery, numDays)
 	fmt.Println("Generating itinerary via Cloudflare AI...")
-	itinerary, err := generateItinerary(prompt, cloudflareAccountID)
+	itinerary, err := generateItinerary(prompt, CLOUDFLARE_ACC_ID)
 	if err != nil {
 		log.Fatalf("Error generating itinerary: %v", err)
 	}
 
-	fmt.Println("\n=== TRAVEL PLAN ===\n")
-	fmt.Println(itinerary)
+	fmt.Println("=== TRAVEL PLAN ===")
+	if itinerary == ""{
+		return "", fmt.Errorf("error generating itinerary")
+	}
+
+	return itinerary, nil
 }
