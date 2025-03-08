@@ -12,6 +12,8 @@ import {
 import { format, differenceInDays, addDays } from "date-fns";
 import { useLocalSearchParams } from "expo-router";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const ItineraryScreen = () => {
   const {
     location = "Jaipur",
@@ -22,6 +24,28 @@ const ItineraryScreen = () => {
   const [description, setDescription] = useState("");
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const handlePost = async () => {
+    const tripData = {
+      id: new Date().getTime().toString(),
+      location,
+      startDate,
+      endDate,
+      description,
+      hotels,
+    };
+
+    try {
+      let storedTrips = await AsyncStorage.getItem("postedTrips");
+      storedTrips = storedTrips ? JSON.parse(storedTrips) : [];
+      storedTrips.push(tripData);
+      await AsyncStorage.setItem("postedTrips", JSON.stringify(storedTrips));
+
+      alert("Trip posted successfully!");
+      router.push("/connectMenu");
+    } catch (error) {
+      console.error("Error posting trip:", error);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -131,7 +155,7 @@ const ItineraryScreen = () => {
         <TouchableOpacity style={styles.button}>
           <Text style={styles.buttonText}>Save</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={handlePost}>
           <Text style={styles.buttonText}>Post</Text>
         </TouchableOpacity>
       </View>

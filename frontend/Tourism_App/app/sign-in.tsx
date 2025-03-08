@@ -58,10 +58,6 @@ const SignIn = () => {
           await AsyncStorage.setItem("token", data.token);
           console.log("Token saved:", data.token);
         }
-        if (token) {
-          await AsyncStorage.setItem("ID", data.ID);
-          console.log("ID:", data.ID);
-        }
 
         await AsyncStorage.setItem("userName", userName);
         Alert.alert("Success", `Welcome, ${userName}!`);
@@ -77,7 +73,7 @@ const SignIn = () => {
 
   return (
     <LinearGradient
-      colors={["#0d1b2a", "#1b263b", "#fdb44b"]}
+      colors={["#0d1b2a", "#53a8b6", "#fdb44b"]}
       style={{ flex: 1 }}
     >
       <SafeAreaView style={{ flex: 1 }}>

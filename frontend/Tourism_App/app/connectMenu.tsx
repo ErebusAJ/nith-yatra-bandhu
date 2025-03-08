@@ -21,7 +21,19 @@ const Connect = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isLoading, setIsLoading] = useState({});
   const [sentRequests, setSentRequests] = useState({});
+  const [postedTrips, setPostedTrips] = useState([]);
+  const predefinedImages = {
+    LADAKH: "https://example.com/images/ladakh.jpg",
+    ARGENTINA: "https://example.com/images/argentina.jpg",
+    JAPAN: "https://example.com/images/japan.jpg",
+    SWITZERLAND: "https://example.com/images/switzerland.jpg",
+    BALI: "https://example.com/images/bali.jpg",
+    ICELAND: "https://example.com/images/iceland.jpg",
+    NORWAY: "https://example.com/images/norway.jpg",
+    CANADA: "https://example.com/images/canada.jpg",
+  };
 
+  // Fetch logged-in user ID
   useEffect(() => {
     const getUserId = async () => {
       try {
@@ -44,6 +56,22 @@ const Connect = () => {
     getUserId();
   }, []);
 
+  // Fetch posted trips from AsyncStorage
+  useEffect(() => {
+    const fetchPostedTrips = async () => {
+      try {
+        let storedTrips = await AsyncStorage.getItem("postedTrips");
+        storedTrips = storedTrips ? JSON.parse(storedTrips) : [];
+        setPostedTrips(storedTrips);
+      } catch (error) {
+        console.error("Error fetching posted trips:", error);
+      }
+    };
+
+    fetchPostedTrips();
+  }, []);
+
+  // Function to handle connection request
   const handleConnect = async (receiverId, tripName) => {
     if (!currentUserId) {
       Alert.alert("Error", "You need to be logged in to connect with others");
@@ -108,11 +136,16 @@ const Connect = () => {
     }
   };
 
+  // Travelers Data (Includes new travelers)
   const travelersData = [
     { id: "user123", name: "Jessie", tripName: "LADAKH" },
     { id: "user456", name: "Andrew", tripName: "ARGENTINA" },
     { id: "user789", name: "Joseph", tripName: "JAPAN" },
     { id: "user101", name: "Kelly", tripName: "SWITZERLAND" },
+    { id: "user202", name: "Sophia", tripName: "BALI" },
+    { id: "user303", name: "Michael", tripName: "ICELAND" },
+    { id: "user404", name: "Emma", tripName: "NORWAY" },
+    { id: "user505", name: "Daniel", tripName: "CANADA" },
   ];
 
   return (
@@ -125,9 +158,26 @@ const Connect = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Render Posted Trips */}
+        {postedTrips.map((trip, index) => (
+          <TravelCard
+            key={`posted-${index}`}
+            image={`https://source.unsplash.com/featured/?travel,${trip.location}`}
+            title={trip.location}
+            profileImage={`https://randomuser.me/api/portraits/men/${index}.jpg`}
+            name="You"
+            description={`Explore ${trip.location} from ${trip.startDate} to ${trip.endDate}.`}
+            tripDates={`${trip.startDate} - ${trip.endDate}`}
+            groupSize="1/4"
+            profiles={["https://randomuser.me/api/portraits/women/45.jpg"]}
+            onConnect={() => console.log("Connect clicked")}
+          />
+        ))}
+
+        {/* Render Travelers */}
         {travelersData.map((traveler, index) => (
           <TravelCard
-            key={index}
+            key={`traveler-${index}`}
             image={`https://source.unsplash.com/featured/?travel,${traveler.tripName}`}
             title={traveler.tripName}
             profileImage={`https://randomuser.me/api/portraits/men/${index}.jpg`}
@@ -151,7 +201,7 @@ const Connect = () => {
         <Ionicons name="add" size={32} color="white" />
       </TouchableOpacity>
 
-      {/* Fixed Taskbar at the Bottom */}
+      {/* Fixed Taskbar */}
       <View style={styles.taskbarContainer}>
         <Taskbar />
       </View>
@@ -179,7 +229,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   scrollContainer: {
-    paddingBottom: 100, // Space for Taskbar + Floating Button
+    paddingBottom: 100,
   },
   taskbarContainer: {
     position: "absolute",
@@ -194,7 +244,7 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     position: "absolute",
-    bottom: 90, // Adjust above Taskbar
+    bottom: 90,
     right: 20,
     backgroundColor: "#007AFF",
     width: 60,
@@ -206,7 +256,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
-    elevation: 5, // For Android shadow
+    elevation: 5,
   },
 });
 
