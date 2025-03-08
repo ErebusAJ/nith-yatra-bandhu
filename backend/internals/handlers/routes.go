@@ -30,6 +30,8 @@ func RegisterRoutes(r *gin.Engine) {
 
 	r.POST("/v1/register", apiCfg.registerUser)
 	r.POST("/v1/login", apiCfg.loginUser)
+	r.POST("/guides/register", apiCfg.registerGuides)
+	
 
 	// Load signed key for middleware
 	signedKey := os.Getenv("SIGNED_KEY")
@@ -65,6 +67,9 @@ func RegisterRoutes(r *gin.Engine) {
 		protected.GET("/travel-group/:groupID/request", apiCfg.getUserGroupRequest)
 		protected.POST("/travel-group/:groupID/request/:senderID", apiCfg.updateRequest)
 
+		// booking request 
+		protected.POST("/guide/book/:groupID/:guideID", apiCfg.sendBookRequest)
+		protected.GET("/guide/", apiCfg.getGuideDetails)
 	}
 
 	// User Password Reset Routes
