@@ -204,7 +204,7 @@ const HomeScreen = ({ navigation }) => {
           activeOpacity={0.7}
           style={styles.profileButton}
         >
-          <Ionicons name="person-circle-outline" size={46} color="#27296d" />
+          <Ionicons name="person-circle-outline" size={46} color="#10316b" />
         </TouchableOpacity>
       </View>
 

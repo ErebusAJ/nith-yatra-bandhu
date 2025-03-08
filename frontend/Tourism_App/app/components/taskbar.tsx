@@ -34,6 +34,7 @@ const Taskbar = () => {
               key={index}
               style={[styles.taskbarItem, isActive && styles.floatingItem]}
               onPress={() => router.push(tab.route)}
+              activeOpacity={0.7}
             >
               <View
                 style={[styles.iconContainer, isActive && styles.floatingIcon]}
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    backgroundColor: "rgb(5, 10, 59)",
+    backgroundColor: "#10316b",
     width: "100%",
     paddingVertical: 15,
     borderTopLeftRadius: 20,

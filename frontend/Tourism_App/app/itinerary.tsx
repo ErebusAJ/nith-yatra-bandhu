@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +10,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Modal,
+  TextInput,
 } from "react-native";
 import { format, differenceInDays, addDays } from "date-fns";
 import { useLocalSearchParams } from "expo-router";
@@ -24,7 +28,26 @@ const ItineraryScreen = () => {
   const [description, setDescription] = useState("");
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [memberCount, setMemberCount] = useState("");
+
   const handlePost = async () => {
+    // Show the modal instead of immediately posting
+    setModalVisible(true);
+  };
+
+  const createGroupAndPost = async () => {
+    if (!groupName.trim()) {
+      alert("Please enter a group name");
+      return;
+    }
+
+    if (!memberCount.trim() || isNaN(Number.parseInt(memberCount))) {
+      alert("Please enter a valid number of members");
+      return;
+    }
+
     const tripData = {
       id: new Date().getTime().toString(),
       location,
@@ -32,15 +55,35 @@ const ItineraryScreen = () => {
       endDate,
       description,
       hotels,
+      groupInfo: {
+        name: groupName,
+        memberCount: Number.parseInt(memberCount),
+      },
     };
 
     try {
+      // Save trip data
       let storedTrips = await AsyncStorage.getItem("postedTrips");
       storedTrips = storedTrips ? JSON.parse(storedTrips) : [];
       storedTrips.push(tripData);
       await AsyncStorage.setItem("postedTrips", JSON.stringify(storedTrips));
 
-      alert("Trip posted successfully!");
+      // Save group data for chat screen
+      let chatGroups = await AsyncStorage.getItem("chatGroups");
+      chatGroups = chatGroups ? JSON.parse(chatGroups) : [];
+      chatGroups.push({
+        id: tripData.id,
+        name: groupName,
+        memberCount: Number.parseInt(memberCount),
+        location: location,
+        createdAt: new Date().toISOString(),
+        messages: [],
+      });
+      await AsyncStorage.setItem("chatGroups", JSON.stringify(chatGroups));
+
+      // Close modal and navigate
+      setModalVisible(false);
+      alert("Trip posted and group created successfully!");
       router.push("/connectMenu");
     } catch (error) {
       console.error("Error posting trip:", error);
@@ -159,6 +202,51 @@ const ItineraryScreen = () => {
           <Text style={styles.buttonText}>Post</Text>
         </TouchableOpacity>
       </View>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>Create Travel Group</Text>
+
+            <Text style={styles.inputLabel}>Group Name</Text>
+            <TextInput
+              style={styles.input}
+              value={groupName}
+              onChangeText={setGroupName}
+              placeholder="Enter group name"
+            />
+
+            <Text style={styles.inputLabel}>Number of Members</Text>
+            <TextInput
+              style={styles.input}
+              value={memberCount}
+              onChangeText={setMemberCount}
+              placeholder="Enter number of members"
+              keyboardType="numeric"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.createButton]}
+                onPress={createGroupAndPost}
+              >
+                <Text style={styles.createButtonText}>Create Group</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -236,4 +324,73 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalView: {
+    width: "85%",
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 25,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+    color: "#ffa952",
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 5,
+    color: "#555",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  modalButton: {
+    padding: 12,
+    borderRadius: 10,
+    flex: 1,
+    marginHorizontal: 5,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  createButton: {
+    backgroundColor: "#ffa952",
+  },
+  cancelButtonText: {
+    color: "#555",
+    fontWeight: "bold",
+  },
+  createButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
 });

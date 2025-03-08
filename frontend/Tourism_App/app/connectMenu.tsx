@@ -192,15 +192,6 @@ const Connect = () => {
         ))}
       </ScrollView>
 
-      {/* Floating Plus Button */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => router.push("/createPlan")}
-        disabled={Object.values(isLoading).some((loading) => loading)}
-      >
-        <Ionicons name="add" size={32} color="white" />
-      </TouchableOpacity>
-
       {/* Fixed Taskbar */}
       <View style={styles.taskbarContainer}>
         <Taskbar />
@@ -216,7 +207,9 @@ const styles = StyleSheet.create({
   },
   container: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
   heading: {
     fontSize: 28,
