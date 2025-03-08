@@ -70,6 +70,9 @@ func RegisterRoutes(r *gin.Engine) {
 		// booking request 
 		protected.POST("/guide/book/:groupID/:guideID", apiCfg.sendBookRequest)
 		protected.GET("/guide/", apiCfg.getGuideDetails)
+
+		// AI plan generaet
+		protected.GET("/ai-planner", apiCfg.generatePlan)
 	}
 
 	// User Password Reset Routes

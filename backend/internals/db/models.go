@@ -6,10 +6,19 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type AiPlan struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	RawData   json.RawMessage
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
 
 type Guide struct {
 	ID         uuid.UUID

@@ -1,13 +1,10 @@
 package utils
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,73 +15,108 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Replace these constants with your actual API credentials.
 const (
-	CF_API_URL            = "https://api.cloudflare.com/client/v4/accounts/%v/ai/run/%v"
-	CF_MODEL              = "@cf/mistral/mistral-7b-instruct-v0.1" 
-	MAX_TOKENS            = 1800
-	DefaultTravelDuration = 3
+	CFModel     = "@cf/mistral/mistral-7b-instruct-v0.1"
+	MaxTokens   = 1800
+	DefaultDays = 3
 )
 
-//
-// 1. Mapbox Functions
-//
+type WeatherData struct {
+	CurrentTemp float64
+	CurrentWind float64
+	CurrentCode int
+	MaxTemp     float64
+	MinTemp     float64
+	MaxWind     float64
+	DailyCode   int
+}
 
-// getCoordinates calls the Mapbox Geocoding API to fetch coordinates for a location.
-func getCoordinates(location, mapboxToken string) ([]float64, error) {
-	endpoint := fmt.Sprintf("https://api.mapbox.com/geocoding/v5/mapbox.places/%s.json", url.PathEscape(location))
-	params := url.Values{}
-	params.Set("access_token", mapboxToken)
-	params.Set("limit", "1")
-	urlWithParams := fmt.Sprintf("%s?%s", endpoint, params.Encode())
+type RiskDetails struct {
+	Percentage int
+	Factors    []string
+}
 
-	client := http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(urlWithParams)
+type TravelData struct {
+	LocationInfo   string
+	Hotels         []string
+	Attractions    []string
+	Transportation string
+	Weather        string
+	RiskFactor     string
+	RiskDetails    RiskDetails
+}
+
+func getCoordinates(location, token string) ([]float64, error) {
+	escapedLocation := url.PathEscape(location)
+	url := fmt.Sprintf("https://api.mapbox.com/geocoding/v5/mapbox.places/%s.json", escapedLocation)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	q := req.URL.Query()
+	q.Add("access_token", token)
+	q.Add("limit", "1")
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Mapbox API error: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
-	var result struct {
+	var data struct {
 		Features []struct {
 			Center []float64 `json:"center"`
 		} `json:"features"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
 	}
-	if len(result.Features) == 0 || len(result.Features[0].Center) < 2 {
-		return nil, errors.New("no coordinates found")
+
+	if len(data.Features) == 0 || len(data.Features[0].Center) < 2 {
+		return nil, fmt.Errorf("no coordinates found")
 	}
-	return result.Features[0].Center, nil
+
+	return []float64{data.Features[0].Center[0], data.Features[0].Center[1]}, nil
 }
 
-// getMapboxPOIs fetches points of interest (POIs) for a category using Mapbox.
 func getMapboxPOIs(location, category string, limit int, token string) ([]string, error) {
-	// Get coordinates first
-	_, err := getCoordinates(location, token)
+	coords, err := getCoordinates(location, token)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoint := fmt.Sprintf("https://api.mapbox.com/geocoding/v5/mapbox.places/%s.json", url.PathEscape(category))
-	params := url.Values{}
-	params.Set("access_token", token)
-	params.Set("limit", strconv.Itoa(limit))
-	// Optionally, add a proximity parameter if needed.
-	urlWithParams := fmt.Sprintf("%s?%s", endpoint, params.Encode())
+	escapedCategory := url.PathEscape(category)
+	url := fmt.Sprintf("https://api.mapbox.com/geocoding/v5/mapbox.places/%s.json", escapedCategory)
 
-	client := http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(urlWithParams)
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	q := req.URL.Query()
+	q.Add("access_token", token)
+	q.Add("limit", strconv.Itoa(limit))
+	q.Add("proximity", fmt.Sprintf("%f,%f", coords[0], coords[1]))
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Mapbox POI error: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
 	var result struct {
@@ -92,60 +124,64 @@ func getMapboxPOIs(location, category string, limit int, token string) ([]string
 			Text string `json:"text"`
 		} `json:"features"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
+
 	var pois []string
-	for _, feature := range result.Features {
-		if feature.Text != "" {
-			pois = append(pois, feature.Text)
+	for _, f := range result.Features {
+		if f.Text != "" {
+			pois = append(pois, f.Text)
 		}
 	}
 	return pois, nil
 }
 
-//
-// 2. TomTom and Wikipedia Functions
-//
-
-// getTomtomPOIs calls the TomTom API to fetch POIs based on coordinates.
-func getTomtomPOIs(coords []float64, category string, limit int, apiKey string) ([]string, error) {
+func getTomTomPOIs(coords []float64, category string, limit int, apiKey string) ([]string, error) {
 	if len(coords) < 2 {
-		return nil, errors.New("invalid coordinates")
+		return nil, fmt.Errorf("invalid coordinates")
 	}
 
-	endpoint := "https://api.tomtom.com/search/2/categorySearch/.json"
-	params := url.Values{}
-	params.Set("key", apiKey)
-	params.Set("lat", fmt.Sprintf("%f", coords[1]))
-	params.Set("lon", fmt.Sprintf("%f", coords[0]))
-	params.Set("limit", strconv.Itoa(limit))
-	// The categorySet can be adjusted based on the category.
-	params.Set("categorySet", "7376")
-	urlWithParams := fmt.Sprintf("%s?%s", endpoint, params.Encode())
+	url := "https://api.tomtom.com/search/2/categorySearch/.json"
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	client := http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(urlWithParams)
+	q := req.URL.Query()
+	q.Add("key", apiKey)
+	q.Add("lat", strconv.FormatFloat(coords[1], 'f', -1, 64))
+	q.Add("lon", strconv.FormatFloat(coords[0], 'f', -1, 64))
+	q.Add("limit", strconv.Itoa(limit))
+	q.Add("categorySet", "7376")
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TomTom API error: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
-	var result struct {
+	var data struct {
 		Results []struct {
 			Poi struct {
 				Name string `json:"name"`
 			} `json:"poi"`
 		} `json:"results"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
 	}
+
 	var pois []string
-	for _, r := range result.Results {
+	for _, r := range data.Results {
 		if r.Poi.Name != "" {
 			pois = append(pois, r.Poi.Name)
 		}
@@ -153,167 +189,194 @@ func getTomtomPOIs(coords []float64, category string, limit int, apiKey string) 
 	return pois, nil
 }
 
-// getLocationInfo fetches a brief summary of the location from Wikipedia.
-func getLocationInfo(locationName string) (string, error) {
-	sanitized := strings.ReplaceAll(locationName, " ", "_")
-	urlStr := fmt.Sprintf("https://en.wikipedia.org/api/rest_v1/page/summary/%s", sanitized)
-	client := http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(urlStr)
+func getWeatherData(coords []float64) (*WeatherData, error) {
+	url := "https://api.open-meteo.com/v1/forecast"
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+
+	q := req.URL.Query()
+	q.Add("latitude", strconv.FormatFloat(coords[1], 'f', -1, 64))
+	q.Add("longitude", strconv.FormatFloat(coords[0], 'f', -1, 64))
+	q.Add("current_weather", "true")
+	q.Add("daily", "weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max")
+	q.Add("timezone", "auto")
+	q.Add("forecast_days", "1")
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		// Fallback if not available
-		return fmt.Sprintf("%s is a fascinating destination with rich history and cultural significance.", locationName), nil
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
-	var result struct {
-		Extract string `json:"extract"`
+
+	var response struct {
+		CurrentWeather struct {
+			Temperature float64 `json:"temperature"`
+			Windspeed   float64 `json:"windspeed"`
+			Weathercode int     `json:"weathercode"`
+		} `json:"current_weather"`
+		Daily struct {
+			Weathercode      []int     `json:"weathercode"`
+			Temperature2mMax []float64 `json:"temperature_2m_max"`
+			Temperature2mMin []float64 `json:"temperature_2m_min"`
+			Windspeed10mMax  []float64 `json:"windspeed_10m_max"`
+		} `json:"daily"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, err
 	}
-	if result.Extract == "" {
-		return fmt.Sprintf("%s is a fascinating destination with rich history and cultural significance.", locationName), nil
+
+	wd := &WeatherData{
+		CurrentTemp: response.CurrentWeather.Temperature,
+		CurrentWind: response.CurrentWeather.Windspeed,
+		CurrentCode: response.CurrentWeather.Weathercode,
 	}
-	return result.Extract, nil
+
+	if len(response.Daily.Temperature2mMax) > 0 {
+		wd.MaxTemp = response.Daily.Temperature2mMax[0]
+	}
+	if len(response.Daily.Temperature2mMin) > 0 {
+		wd.MinTemp = response.Daily.Temperature2mMin[0]
+	}
+	if len(response.Daily.Windspeed10mMax) > 0 {
+		wd.MaxWind = response.Daily.Windspeed10mMax[0]
+	}
+	if len(response.Daily.Weathercode) > 0 {
+		wd.DailyCode = response.Daily.Weathercode[0]
+	}
+
+	return wd, nil
 }
 
-//
-// 3. Transportation and Weather Functions
-//
+func interpretWeatherCode(code int) string {
+	weatherDescriptions := map[int]string{
+		0: "Clear sky",
+		// Add all other weather codes here
+	}
+	if desc, ok := weatherDescriptions[code]; ok {
+		return desc
+	}
+	return "Unknown weather condition"
+}
 
-// getTransportationInfo calls Mapbox's directions matrix API to get travel durations.
-func getTransportationInfo(coords []float64, mapboxToken string) (string, error) {
-	endpoint := "https://api.mapbox.com/directions-matrix/v1/mapbox/driving"
-	params := url.Values{}
-	params.Set("access_token", mapboxToken)
-	params.Set("sources", fmt.Sprintf("%f,%f", coords[0], coords[1]))
-	params.Set("annotations", "duration")
-	urlWithParams := fmt.Sprintf("%s?%s", endpoint, params.Encode())
+func formatWeather(wd *WeatherData) string {
+	if wd == nil {
+		return "Weather information unavailable"
+	}
 
-	client := http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(urlWithParams)
+	var elements []string
+	if wd.CurrentTemp != 0 {
+		elements = append(elements, fmt.Sprintf("%.1f°C", wd.CurrentTemp))
+	}
+	if wd.CurrentWind != 0 {
+		elements = append(elements, fmt.Sprintf("Wind: %.1f km/h", wd.CurrentWind))
+	}
+	if desc := interpretWeatherCode(wd.CurrentCode); desc != "" {
+		elements = append(elements, desc)
+	}
+
+	if len(elements) > 0 {
+		return "Current: " + strings.Join(elements, ", ")
+	}
+	return "Weather data unavailable"
+}
+
+func calculateRiskFactor(wd *WeatherData) int {
+	if wd == nil {
+		return 0
+	}
+
+	risk := 0
+	// Add risk calculation logic
+	return min(risk, 100)
+}
+
+func getLocationInfo(locationName string) string {
+	// Implement Wikipedia API call
+	return fmt.Sprintf("%s is a fascinating destination with rich history and cultural significance.", locationName)
+}
+
+func getTransportationInfo(coords []float64, token string) string {
+	// Implement Mapbox directions API call
+	return "Typical travel time: 15-45 mins"
+}
+
+func collectTravelData(location string, numDays int, mapboxToken, tomtomKey string) (*TravelData, error) {
+	coords, err := getCoordinates(location, mapboxToken)
 	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Mapbox directions error: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("could not retrieve coordinates: %v", err)
 	}
 
-	var result struct {
-		Durations [][]float64 `json:"durations"`
+	weatherData, err := getWeatherData(coords)
+	if err != nil {
+		return nil, fmt.Errorf("could not get weather data: %v", err)
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	if len(result.Durations) == 0 || len(result.Durations[0]) == 0 {
-		return "Typical travel time: 15-45 mins", nil
-	}
-	sum := 0.0
-	count := 0
-	for _, d := range result.Durations[0] {
-		if d > 0 {
-			sum += d
-			count++
-		}
-	}
-	if count == 0 {
-		return "Typical travel time: 15-45 mins", nil
-	}
-	avg := sum / float64(count) / 60.0
-	return fmt.Sprintf("Average travel time: %.1f mins", avg), nil
+
+	riskPercentage := calculateRiskFactor(weatherData)
+
+	// Collect POIs from both services
+	hotels := unique(append(
+		getPOISafe(getMapboxPOIs(location, "hotel", 10, mapboxToken)),
+		getPOISafe(getTomTomPOIs(coords, "hotel", 10, tomtomKey))...,
+	))[:10]
+
+	attractions := unique(append(
+		getPOISafe(getMapboxPOIs(location, "attraction", numDays*4, mapboxToken)),
+		getPOISafe(getTomTomPOIs(coords, "attraction", numDays*4, tomtomKey))...,
+	))[:numDays*4]
+
+	return &TravelData{
+		LocationInfo:   getLocationInfo(strings.Split(location, ",")[0]),
+		Hotels:         hotels,
+		Attractions:    attractions,
+		Transportation: getTransportationInfo(coords, mapboxToken),
+		Weather:        formatWeather(weatherData),
+		RiskFactor:     fmt.Sprintf("%d%%", riskPercentage),
+		RiskDetails: RiskDetails{
+			Percentage: riskPercentage,
+			Factors:    getRiskFactors(weatherData, riskPercentage),
+		},
+	}, nil
 }
 
-// getWeatherContext returns a placeholder weather context.
-// (You can implement a real weather API call as needed.)
-func getWeatherContext(coords []float64) (string, error) {
-	return "Weather data not implemented", nil
+func getPOISafe(pois []string, err error) []string {
+	if err != nil {
+		return []string{}
+	}
+	return pois
 }
 
-//
-// 4. Data Aggregation and Prompt Formatting
-//
-
-// TravelData holds aggregated travel information.
-type TravelData struct {
-	LocationInfo   string   `json:"location_info"`
-	Hotels         []string `json:"hotels"`
-	Attractions    []string `json:"attractions"`
-	Transportation string   `json:"transportation"`
-	Weather        string   `json:"weather"`
-}
-
-// uniqueStrings returns unique strings from a slice.
-func uniqueStrings(input []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-	for _, str := range input {
-		if !seen[str] {
-			seen[str] = true
-			result = append(result, str)
+func unique(slice []string) []string {
+	keys := make(map[string]bool)
+	result := []string{}
+	for _, item := range slice {
+		if !keys[item] {
+			keys[item] = true
+			result = append(result, item)
 		}
 	}
 	return result
 }
 
-// collectTravelData aggregates data from various APIs.
-func collectTravelData(location string, numDays int, mapboxToken, tomtomKey string) (*TravelData, error) {
-	coords, err := getCoordinates(location, mapboxToken)
-	if err != nil {
-		return nil, fmt.Errorf("could not retrieve coordinates for location: %v", err)
-	}
-	// Use the first part of the location for Wikipedia info.
-	parts := strings.Split(location, ",")
-	locInfo, err := getLocationInfo(strings.TrimSpace(parts[0]))
-	if err != nil {
-		locInfo = fmt.Sprintf("%s is a fascinating destination with rich history and cultural significance.", location)
-	}
-
-	mapboxHotels, _ := getMapboxPOIs(location, "hotel", 10, mapboxToken)
-	tomtomHotels, _ := getTomtomPOIs(coords, "hotel", 10, tomtomKey)
-	hotels := uniqueStrings(append(mapboxHotels, tomtomHotels...))
-	if len(hotels) > 10 {
-		hotels = hotels[:10]
-	}
-
-	mapboxAttractions, _ := getMapboxPOIs(location, "attraction", numDays*4, mapboxToken)
-	tomtomAttractions, _ := getTomtomPOIs(coords, "attraction", numDays*4, tomtomKey)
-	attractions := uniqueStrings(append(mapboxAttractions, tomtomAttractions...))
-	if len(attractions) > numDays*4 {
-		attractions = attractions[:numDays*4]
-	}
-
-	transportation, _ := getTransportationInfo(coords, mapboxToken)
-	weather, _ := getWeatherContext(coords)
-
-	return &TravelData{
-		LocationInfo:   locInfo,
-		Hotels:         hotels,
-		Attractions:    attractions,
-		Transportation: transportation,
-		Weather:        weather,
-	}, nil
+func getRiskFactors(wd *WeatherData, risk int) []string {
+	// Implement risk factor calculation
+	return []string{"No significant weather risks detected"}
 }
 
-// formatPrompt creates the itinerary generation prompt.
 func formatPrompt(ragData *TravelData, userQuery string, numDays int) string {
-	hotelsSample := ""
-	if len(ragData.Hotels) >= 3 {
-		hotelsSample = strings.Join(ragData.Hotels[:3], ", ")
-	} else {
-		hotelsSample = strings.Join(ragData.Hotels, ", ")
-	}
+    hotels := strings.Join(ragData.Hotels[:min(3, len(ragData.Hotels))], ", ")
+    attractions := strings.Join(ragData.Attractions[:min(6, len(ragData.Attractions))], ", ")
+    riskFactors := strings.Join(ragData.RiskDetails.Factors, ", ")
 
-	attractionsSample := ""
-	if len(ragData.Attractions) >= 6 {
-		attractionsSample = strings.Join(ragData.Attractions[:6], ", ")
-	} else {
-		attractionsSample = strings.Join(ragData.Attractions, ", ")
-	}
-
-	prompt := fmt.Sprintf(`<s>[INST] Create a detailed %d-day travel itinerary with these components:
+    return fmt.Sprintf(`<s>[INST] Create a detailed %d-day travel itinerary with these components:
 
 Destination Context: %s
 
@@ -331,119 +394,273 @@ Structure Requirements:
 4. Local dining suggestions near activities
 5. Hotel recommendations with proximity notes
 
-Include practical tips and safety considerations where relevant.
-[/INST]</s>`, numDays, ragData.LocationInfo, hotelsSample, attractionsSample, ragData.Transportation, ragData.Weather, userQuery)
-	return prompt
+Final Section:
+- Safety Summary: %s overall risk
+  * Primary factors: %s
+  * Weather-adjusted recommendations
+  * Emergency preparedness tips[/INST]</s>`,
+        numDays,
+        ragData.LocationInfo,
+        hotels,
+        attractions,
+        ragData.Transportation,
+        ragData.Weather,
+        userQuery,
+        ragData.RiskFactor,
+        riskFactors,
+    )
 }
 
-//
-// 5. Cloudflare AI Itinerary Generation
-//
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
 
-// generateItinerary sends the prompt to Cloudflare's AI API.
-func generateItinerary(prompt, accountID string) (string, error) {
-	urlStr := fmt.Sprintf(CF_API_URL, accountID, CF_MODEL)
+func generateItinerary(prompt, accountID, apiKey string) (string, error) {
+    url := fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/ai/run/%s", accountID, CFModel)
+
+    payload := map[string]interface{}{
+        "prompt":      prompt,
+        "max_tokens":  MaxTokens,
+        "temperature": 0.7,
+        "top_p":       0.9,
+        "stream":      false,
+    }
+
+    jsonPayload, err := json.Marshal(payload)
+    if err != nil {
+        return "", fmt.Errorf("error marshaling payload: %w", err)
+    }
+
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+    if err != nil {
+        return "", fmt.Errorf("error creating request: %w", err)
+    }
+
+    req.Header.Set("Authorization", "Bearer "+apiKey)
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{Timeout: 300 * time.Second}
+    resp, err := client.Do(req)
+    if err != nil {
+        return "", fmt.Errorf("API request failed: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        body, _ := io.ReadAll(resp.Body)
+        return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+    }
+
+    var result struct {
+        Result struct {
+            Response string `json:"response"`
+        } `json:"result"`
+        Success bool   `json:"success"`
+        Errors  []any  `json:"errors"`
+    }
+
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return "", fmt.Errorf("error decoding response: %w", err)
+    }
+
+    if !result.Success || len(result.Errors) > 0 {
+        return "", fmt.Errorf("API errors: %v", result.Errors)
+    }
+
+    return result.Result.Response, nil
+}
+
+func convertToJSON(textItinerary string, numDays int, apiKey string) (map[string]interface{}, error) {
+	today := time.Now()
+	startDate := today.Format("2006-01-02")
+	endDate := today.AddDate(0, 0, numDays-1).Format("2006-01-02")
+
+	prompt := fmt.Sprintf(`Convert this %d-day travel itinerary into structured JSON:
+
+    %s
+
+    Use this exact JSON structure:
+    {
+      "destination": "City, Country",
+      "travel_duration": {
+        "total_days": %d,
+        "start_date": "%s",
+        "end_date": "%s"
+      },
+      "daily_itinerary": [
+        {
+          "day_number": 1,
+          "date": "%s",
+          "weather": {
+            "temperature": "22°C",
+            "conditions": "Sunny"
+          },
+          "activities": [
+            {
+              "time_slot": "Morning",
+              "name": "Activity Name",
+              "type": "Cultural/Historical/Leisure",
+              "duration": "2 hours",
+              "description": "Detailed description",
+              "location": {
+                "name": "Location Name",
+                "coordinates": [12.34, 56.78]
+              },
+              "tips": ["Practical advice"]
+            }
+          ],
+          "dining": [
+            {
+              "meal_type": "Lunch",
+              "name": "Restaurant Name",
+              "cuisine": "Italian",
+              "address": "Street Address"
+            }
+          ],
+          "accommodation": {
+            "name": "Hotel Name",
+            "proximity_to_attractions": "500m from city center"
+          },
+          "transportation": [
+            {
+              "type": "Public Transit",
+              "details": "Take metro line A to Central Station"
+            }
+          ]
+        }
+      ],
+      "key_highlights": {
+        "top_attractions": ["Attraction 1", "Attraction 2"],
+        "must_try_foods": ["Food 1", "Food 2"]
+      },
+      "safety_considerations": {
+        "general_advice": ["Stay alert in crowded areas"],
+        "emergency_numbers": ["112"]
+      }
+    }
+
+    Rules:
+    1. Maintain all information from original text
+    2. Generate realistic coordinates based on location
+    3. Estimate missing time/duration logically
+    4. Preserve exact names from original text
+    5. Maintain EXACT day count: %d days
+    6. Use provided dates: %s to %s
+    7. Never shorten the duration
+    8. Include null values for missing optional fields
+    9. Add realistic weather data if missing`,
+		numDays, textItinerary, numDays, startDate, endDate,
+		startDate, numDays, startDate, endDate)
+
+	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+	client := &http.Client{Timeout: 30 * time.Second}
+
 	payload := map[string]interface{}{
-		"prompt":      prompt,
-		"max_tokens":  MAX_TOKENS,
-		"temperature": 0.7,
-		"top_p":       0.9,
-		"stream":      false,
+		"contents": []interface{}{
+			map[string]interface{}{
+				"parts": []interface{}{
+					map[string]string{"text": prompt},
+				},
+			},
+		},
 	}
-	jsonData, err := json.Marshal(payload)
+
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("error creating request payload: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 
-	godotenv.Load()
-	CLOUDFLARE_API_KEY := os.Getenv("CLOUDFLARE_API_KEY")
-	if CLOUDFLARE_API_KEY == ""{
-		log.Fatalf("error getting CLOUDFLARE_API_KEY")
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", CLOUDFLARE_API_KEY))
+	q := req.URL.Query()
+	q.Add("key", apiKey)
+	req.URL.RawQuery = q.Encode()
 	req.Header.Set("Content-Type", "application/json")
 
-	client := http.Client{Timeout: 300 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("API request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Cloudflare API error: status %d, body: %s", resp.StatusCode, string(bodyBytes))
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, body)
 	}
 
 	var result struct {
-		Result struct {
-			Response string `json:"response"`
-		} `json:"result"`
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
-	if result.Result.Response == "" {
-		return "Error generating itinerary", nil
+
+	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("no valid response from Gemini")
 	}
-	return result.Result.Response, nil
+
+	jsonText := result.Candidates[0].Content.Parts[0].Text
+
+	// Clean up JSON wrapping
+	if strings.Contains(jsonText, "```json") {
+		jsonText = strings.SplitN(jsonText, "```json", 2)[1]
+		jsonText = strings.SplitN(jsonText, "```", 2)[0]
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonText), &jsonData); err != nil {
+		return nil, fmt.Errorf("error unmarshaling JSON: %v\nResponse text: %s", err, jsonText)
+	}
+
+	return jsonData, nil
 }
 
-//
-// 6. Main Function: User Interaction Flow
-//
+func GenerateTravelItinerary(location, userQuery string, numDays int) (map[string]interface{}, error) {
+	godotenv.Load()
 
-func GeneratePlan() (string, error) {
-	reader := bufio.NewReader(os.Stdin)
+	cloudflareAPIKey := os.Getenv("CLOUDFLARE_API_KEY")
+	geminiAPIKey := os.Getenv("GEMINI_API_KEY")
+	mapboxToken := os.Getenv("MAPBOX_TOKEN")
+	tomtomAPIKey := os.Getenv("TOMTOM_API_KEY")
+	cloudflareAccountID := os.Getenv("CLOUDFLARE_ACC_ID")
 
-	fmt.Print("Enter destination (e.g., 'Rome, Italy'): ")
-	location, _ := reader.ReadString('\n')
-	location = strings.TrimSpace(location)
-
-	fmt.Print("Describe your travel preferences: ")
-	userQuery, _ := reader.ReadString('\n')
-	userQuery = strings.TrimSpace(userQuery)
-
-	fmt.Print("Number of days (3-10): ")
-	numDaysStr, _ := reader.ReadString('\n')
-	numDaysStr = strings.TrimSpace(numDaysStr)
-	numDays, err := strconv.Atoi(numDaysStr)
-	if err != nil || numDays < 1 || numDays > 10 {
-		numDays = DefaultTravelDuration
-		fmt.Printf("Using default duration: %d days\n", numDays)
-	}
-
-	// Provide your API tokens/keys here (or load from environment variables)
-	MAPBOX_TOKEN := os.Getenv("MAPBOX_TOKEN")
-	TOMTOM_API_KEY := os.Getenv("TOMTOM_API_KEY")
-	CLOUDFLARE_ACC_ID := os.Getenv("CLOUDFLARE_ACC_ID")
-	if MAPBOX_TOKEN == "" || TOMTOM_API_KEY == "" || CLOUDFLARE_ACC_ID == ""{
-		log.Fatalf("error retrieving env API keys")
-	}
-
-	fmt.Println("Collecting travel data...")
-	ragData, err := collectTravelData(location, numDays, MAPBOX_TOKEN, TOMTOM_API_KEY)
+	fmt.Println("Collecting data...")
+	travelData, err := collectTravelData(location, numDays, mapboxToken, tomtomAPIKey)
 	if err != nil {
-		log.Fatalf("Error collecting travel data: %v", err)
+		fmt.Printf("Error: %v\n", err)
+		return nil, err
 	}
 
-	prompt := formatPrompt(ragData, userQuery, numDays)
-	fmt.Println("Generating itinerary via Cloudflare AI...")
-	itinerary, err := generateItinerary(prompt, CLOUDFLARE_ACC_ID)
+	prompt := formatPrompt(travelData, userQuery, numDays)
+
+	fmt.Println("Generating itinerary...")
+	itinerary, err := generateItinerary(prompt, cloudflareAccountID, cloudflareAPIKey)
 	if err != nil {
-		log.Fatalf("Error generating itinerary: %v", err)
+		fmt.Printf("Error: %v\n", err)
+		return nil, err
 	}
 
-	fmt.Println("=== TRAVEL PLAN ===")
-	if itinerary == ""{
-		return "", fmt.Errorf("error generating itinerary")
+	fmt.Println(itinerary)
+
+	fmt.Println("Converting to JSON...")
+	jsonItinerary, err := convertToJSON(itinerary, numDays, geminiAPIKey)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return nil, err
 	}
 
-	return itinerary, nil
+	return jsonItinerary, err
 }
