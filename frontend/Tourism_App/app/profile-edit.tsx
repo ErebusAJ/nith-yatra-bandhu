@@ -26,7 +26,6 @@ const EditProfileView = () => {
     "https://www.bootdey.com/img/Content/avatar/avatar3.png"
   );
 
-  // Fetch existing user details
   useEffect(() => {
     const fetchUserDetails = async () => {
       const token = await AsyncStorage.getItem("token");
@@ -64,7 +63,6 @@ const EditProfileView = () => {
     fetchUserDetails();
   }, []);
 
-  // Change Profile Image
   const handleChangeProfileImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -78,7 +76,6 @@ const EditProfileView = () => {
     }
   };
 
-  // Update Profile
   const handleUpdate = async () => {
     if (!/^\d{10}$/.test(phone)) {
       Alert.alert(
@@ -135,59 +132,13 @@ const EditProfileView = () => {
     }
   };
 
-  // Delete Account
-  const handleDeleteAccount = async () => {
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete your account? This action is irreversible.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const token = await AsyncStorage.getItem("token");
-            if (!token) {
-              Alert.alert("Error", "User not authenticated!");
-              return;
-            }
-
-            try {
-              const response = await fetch(
-                "https://yatra-bandhu-aj.onrender.com/auth/user",
-                {
-                  method: "DELETE",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
-
-              if (response.status === 204) {
-                Alert.alert(
-                  "Account Deleted",
-                  "Your account has been deleted."
-                );
-                await AsyncStorage.removeItem("token");
-                router.replace("/sign-in");
-              } else {
-                const data = await response.json();
-                Alert.alert("Deletion Failed", data.message || "Try again.");
-              }
-            } catch (error) {
-              console.error("Error deleting account:", error);
-              Alert.alert("Error", "Failed to delete account.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
   return (
-    <LinearGradient colors={["#113f67", "#79c2d0", "#fff"]} style={{ flex: 1 }}>
+    <LinearGradient
+      colors={["#113f67", "#79c2d0", "#fff"]}
+      style={styles.gradient}
+    >
       <View style={styles.container}>
+        {/* Profile Image */}
         <View style={styles.avatarContainer}>
           <TouchableOpacity onPress={handleChangeProfileImage}>
             <Image style={styles.avatar} source={{ uri: profileImage }} />
@@ -195,7 +146,8 @@ const EditProfileView = () => {
           <Text style={styles.changeImageText}>Change Profile Picture</Text>
         </View>
 
-        <View style={styles.form}>
+        {/* Form Fields */}
+        <View style={styles.card}>
           <Text style={styles.label}>Name</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} />
 
@@ -234,61 +186,91 @@ const EditProfileView = () => {
             value={newPassword}
             onChangeText={setNewPassword}
           />
-
-          <TouchableOpacity onPress={handleUpdate} disabled={loading}>
-            <LinearGradient
-              colors={["#113f67", "#79c2d0"]}
-              style={styles.button}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Update Profile</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleDeleteAccount}
-            style={styles.deleteButton}
-          >
-            <Text style={styles.deleteButtonText}>Delete Account</Text>
-          </TouchableOpacity>
         </View>
+
+        {/* Update Button */}
+        <TouchableOpacity onPress={handleUpdate} disabled={loading}>
+          <LinearGradient colors={["#113f67", "#79c2d0"]} style={styles.button}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Update Profile</Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center" },
-  form: { width: "80%" },
-  label: { marginTop: 20, fontSize: 16 },
+  gradient: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 50,
+  },
+  avatarContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: "#79c2d0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+  changeImageText: {
+    color: "#113f67",
+    marginTop: 5,
+    fontSize: 14,
+  },
+  card: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  label: {
+    marginTop: 15,
+    fontSize: 16,
+    color: "#113f67",
+    fontWeight: "bold",
+  },
   input: {
     borderColor: "#ccc",
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 8,
     padding: 10,
-    backgroundColor: "#fff",
+    backgroundColor: "#f9f9f9",
+    fontSize: 16,
+    marginTop: 5,
   },
   button: {
-    marginTop: 20,
+    marginTop: 30,
     borderRadius: 25,
     paddingVertical: 12,
     alignItems: "center",
+    width: "90%",
+    padding: 30,
   },
-  buttonText: { color: "#fff", fontSize: 18 },
-  deleteButton: {
-    marginTop: 20,
-    backgroundColor: "rgba(181, 16, 16, 0.8)",
-    borderRadius: 25,
-    paddingVertical: 12,
-    alignItems: "center",
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
-  deleteButtonText: { color: "#fff", fontSize: 16 },
-  avatarContainer: { alignItems: "center", marginBottom: 10 },
-  avatar: { width: 100, height: 100, borderRadius: 50 },
-  changeImageText: { color: "#113f67", marginTop: 5 },
 });
 
 export default EditProfileView;

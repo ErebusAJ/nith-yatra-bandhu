@@ -2,171 +2,156 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Animated,
   ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 
-const plans = {
-  free: {
-    title: "Travel Buddy MINI",
+const subscriptions = [
+  {
+    id: "basic",
+    title: "Explorer",
     price: "Free",
-    description: "50k+ Satisfied Users",
-    details: [
-      "For the GenZ & GenA Traveller",
-      "Filter & Find Your Ideal Travel Partner",
-      "Effortlessly filter and discover your perfect travel companion among a diverse array of adventurers",
-      "AI Buddy - Unlock the boundless potential of your travels with our AI Buddy, effortlessly generating limitless itineraries tailored to your preferences and desires.",
-      "INR 500 Discount on Group & Customized Trips",
-      "Check Your Profile Visitors",
+    features: [
+      "Personalized travel recommendations (Basic)",
+      "Travel buddy",
+      "Community Spotlights",
+      "Ads",
     ],
   },
-  monthly: {
-    title: "Travel Buddy PRO",
-    price: "₹180/month",
-    description: "Best for frequent travelers",
-    details: [
-      "Zero Convenience Fees On Flights",
-      "Flat 25% Off On Global Calling Cards",
-      "Chat Unlimited with fellow travelers",
-      "Exclusive Perks & Discounts",
-      "Effortless Travel with Visa & Check-In Support",
-      "Welcome on Arrival in Local Tradition",
+  {
+    id: "premium",
+    title: "Voyager",
+    price: "₹49.99/month",
+    features: [
+      "Unlimited Plan Customization",
+      "Interest based buddy matching",
+      "Smart deals",
+      "Ad free",
     ],
   },
-  yearly: {
-    title: "Travel Buddy SUPER",
-    price: "₹600/year",
-    description: "Save more with yearly plan",
-    details: [
-      "All Monthly Benefits",
-      "Additional VIP Lounge Access",
-      "Personalized Trip Recommendations",
-      "Priority Customer Support",
+  {
+    id: "elite",
+    title: "Trailblazer",
+    price: "₹99.99/month",
+    features: [
+      "All Premium+",
+      "Personalized AI trips",
+      "No Travel buddy deposit",
+      "Exclusive Partner Deals",
     ],
   },
-};
+];
 
-export default function SubscriptionScreen() {
-  const [selectedPlan, setSelectedPlan] = useState("free");
-  const fadeAnim = new Animated.Value(1);
+const SubscriptionScreen = () => {
+  const [selectedPlan, setSelectedPlan] = useState(null);
 
-  const switchPlan = (plan) => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setSelectedPlan(plan);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    });
+  const handleSelectPlan = (id) => {
+    setSelectedPlan(id);
+  };
+
+  const handleProceed = () => {
+    if (selectedPlan) {
+      console.log("Proceeding with plan:", selectedPlan);
+    }
   };
 
   return (
-    <LinearGradient colors={["#FFF3B0", "#FFD700"]} style={styles.container}>
-      <Text style={styles.heading}>YATRABANDHU MEMBERSHIP CLUB</Text>
-
-      {/* Tab Switcher */}
-      <View style={styles.toggleContainer}>
-        {Object.keys(plans).map((plan) => (
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.headerTitle}>Choose Your Travel Plan</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {subscriptions.map((plan) => (
           <TouchableOpacity
-            key={plan}
+            key={plan.id}
             style={[
-              styles.toggleButton,
-              selectedPlan === plan && styles.selectedButton,
+              styles.card,
+              selectedPlan === plan.id && styles.selectedCard,
             ]}
-            onPress={() => switchPlan(plan)}
+            onPress={() => handleSelectPlan(plan.id)}
           >
-            <Text
-              style={[
-                styles.toggleText,
-                selectedPlan === plan && styles.selectedText,
-              ]}
-            >
-              {plan.charAt(0).toUpperCase() + plan.slice(1)}
-            </Text>
+            <Text style={styles.title}>{plan.title}</Text>
+            <Text style={styles.price}>{plan.price}</Text>
+            {plan.features.map((feature, index) => (
+              <Text key={index} style={styles.featureText}>
+                • {feature}
+              </Text>
+            ))}
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
-      {/* Subscription Card */}
-      <Animated.View style={[styles.planCard, { opacity: fadeAnim }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.planTitle}>{plans[selectedPlan].title}</Text>
-          <Text style={styles.planPrice}>{plans[selectedPlan].price}</Text>
-          <Text style={styles.planDescription}>
-            {plans[selectedPlan].description}
-          </Text>
-          <TouchableOpacity style={styles.buyButton}>
-            <Text style={styles.buyText}>BUY NOW</Text>
-          </TouchableOpacity>
-          {plans[selectedPlan].details.map((detail, index) => (
-            <Text key={index} style={styles.planDetail}>{`• ${detail}`}</Text>
-          ))}
-        </ScrollView>
-      </Animated.View>
-    </LinearGradient>
+      <TouchableOpacity
+        style={[styles.proceedButton, !selectedPlan && styles.disabledButton]}
+        onPress={handleProceed}
+        disabled={!selectedPlan}
+      >
+        <Text style={styles.proceedButtonText}>Proceed</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
   );
-}
+};
+
+export default SubscriptionScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
+    backgroundColor: "#f5f5f5",
+    padding: 16,
   },
-  heading: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
-    marginVertical: 15,
     textAlign: "center",
+    marginBottom: 20,
   },
-  toggleContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 25,
-    marginVertical: 10,
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 15,
     shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 3,
   },
-  toggleButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+  selectedCard: {
+    borderColor: "#ffa952",
+    borderWidth: 2,
   },
-  selectedButton: {
-    backgroundColor: "#FFD700",
-  },
-  toggleText: {
-    fontSize: 14,
-    color: "#888",
-  },
-  selectedText: {
-    color: "#000",
+  title: {
+    fontSize: 20,
     fontWeight: "bold",
+    marginBottom: 8,
   },
-  planCard: {
-    width: "100%",
-    backgroundColor: "#fff",
-    paddingVertical: 20,
-    paddingHorizontal: 15,
-    borderRadius: 15,
+  price: {
+    fontSize: 18,
+    color: "#ffa952",
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  featureText: {
+    fontSize: 14,
+    color: "#555",
+  },
+  proceedButton: {
+    backgroundColor: "#ffa952",
+    padding: 15,
+    borderRadius: 8,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
+    marginTop: 10,
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+  },
+  proceedButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });

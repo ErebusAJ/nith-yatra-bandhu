@@ -26,8 +26,7 @@ const guides = [
     age: 35,
     rating: 4.8,
     phone: "+91 9876543210",
-    image:
-      "https://i.pinimg.com/736x/c0/74/9b/c0749b7cc401421662ae901ec8f9f660.jpg",
+    image: "https://bootdey.com/img/Content/avatar/avatar5.png",
     experience: "10 years",
   },
   {
@@ -36,8 +35,7 @@ const guides = [
     age: 29,
     rating: 4.5,
     phone: "+91 8765432109",
-    image:
-      "https://i.pinimg.com/736x/c0/74/9b/c0749b7cc401421662ae901ec8f9f660.jpg",
+    image: "https://bootdey.com/img/Content/avatar/avatar1.png",
     experience: "7 years",
   },
   {
@@ -46,8 +44,7 @@ const guides = [
     age: 40,
     rating: 4.9,
     phone: "+91 7654321098",
-    image:
-      "https://i.pinimg.com/736x/c0/74/9b/c0749b7cc401421662ae901ec8f9f660.jpg",
+    image: "https://bootdey.com/img/Content/avatar/avatar6.png",
     experience: "15 years",
   },
   {
@@ -56,8 +53,7 @@ const guides = [
     age: 45,
     rating: 4.2,
     phone: "+91 7654325098",
-    image:
-      "https://i.pinimg.com/736x/c0/74/9b/c0749b7cc401421662ae901ec8f9f660.jpg",
+    image: "https://bootdey.com/img/Content/avatar/avatar5.png",
     experience: "11 years",
   },
   {
@@ -66,8 +62,7 @@ const guides = [
     age: 40,
     rating: 3.9,
     phone: "+91 7654327652",
-    image:
-      "https://i.pinimg.com/736x/c0/74/9b/c0749b7cc401421662ae901ec8f9f660.jpg",
+    image: "https://bootdey.com/img/Content/avatar/avatar2.png",
     experience: "03 years",
   },
   {
@@ -76,8 +71,7 @@ const guides = [
     age: 40,
     rating: 5.0,
     phone: "+91 7656969690",
-    image:
-      "https://i.pinimg.com/736x/c0/74/9b/c0749b7cc401421662ae901ec8f9f660.jpg",
+    image: "https://bootdey.com/img/Content/avatar/avatar6.png",
     experience: "25 years",
   },
 ];

@@ -1,18 +1,9 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
 import React, { useState, useEffect } from "react";
 import TravelCard from "./components/connect-cards";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Taskbar from "./components/taskbar";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { router } from "expo-router";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -22,16 +13,30 @@ const Connect = () => {
   const [isLoading, setIsLoading] = useState({});
   const [sentRequests, setSentRequests] = useState({});
   const [postedTrips, setPostedTrips] = useState([]);
+
   const predefinedImages = {
-    LADAKH: "https://example.com/images/ladakh.jpg",
-    ARGENTINA: "https://example.com/images/argentina.jpg",
-    JAPAN: "https://example.com/images/japan.jpg",
-    SWITZERLAND: "https://example.com/images/switzerland.jpg",
-    BALI: "https://example.com/images/bali.jpg",
-    ICELAND: "https://example.com/images/iceland.jpg",
-    NORWAY: "https://example.com/images/norway.jpg",
-    CANADA: "https://example.com/images/canada.jpg",
+    LADAKH: "https://images.wanderon.in/blogs/new/2023/12/leh-ladakh.jpg",
+    ARGENTINA:
+      "https://www.shiftcities.org/sites/default/files/styles/og_image/public/2021-12/argentina%20%284%29%20small.png?itok=_oDpZyN3",
+    JAPAN:
+      "https://www.state.gov/wp-content/uploads/2019/04/Japan-2107x1406.jpg",
+    SWITZERLAND:
+      "https://cdn.britannica.com/65/162465-050-9CDA9BC9/Alps-Switzerland.jpg",
+    BALI: "https://digital.ihg.com/is/image/ihg/intercontinental-bali-9719167392-2x1",
+    ICELAND:
+      "https://res.cloudinary.com/enchanting/q_70,f_auto,w_838,h_474,c_fit/exodus-web/2021/12/kirkjufellsfoss_iceland.jpg",
+    NORWAY:
+      "https://i.natgeofe.com/k/679e983c-4461-4398-bb6d-9b508fe3e4de/norway-northern-lights.jpg",
+    CANADA:
+      "https://keystoneacademic-res.cloudinary.com/image/upload/f_auto/q_auto/g_auto/c_fill/w_1280/element/11/110845_shutterstock_255015211.jpg",
   };
+
+  const getRandomImage = () =>
+    `https://source.unsplash.com/random/300x200/?travel`;
+  const getRandomProfile = (index) =>
+    `https://randomuser.me/api/portraits/${
+      index % 2 === 0 ? "men" : "women"
+    }/${index}.jpg`;
 
   // Fetch logged-in user ID
   useEffect(() => {
@@ -71,7 +76,6 @@ const Connect = () => {
     fetchPostedTrips();
   }, []);
 
-  // Function to handle connection request
   const handleConnect = async (receiverId, tripName) => {
     if (!currentUserId) {
       Alert.alert("Error", "You need to be logged in to connect with others");
@@ -86,7 +90,6 @@ const Connect = () => {
     setIsLoading((prev) => ({ ...prev, [receiverId]: true }));
 
     try {
-      // ✅ Create a new travel group
       const groupResponse = await axios.post(
         "https://yatra-bandhu-aj.onrender.com/travel-group",
         {
@@ -103,7 +106,6 @@ const Connect = () => {
       const newGroupId = groupResponse.data.groupId;
       await AsyncStorage.setItem("groupId", newGroupId);
 
-      // ✅ Send connection request
       const requestResponse = await axios.post(
         `https://yatra-bandhu-aj.onrender.com/travel-group/${newGroupId}/request`,
         {
@@ -118,25 +120,15 @@ const Connect = () => {
       navigation.navigate("Notifications", { groupId: newGroupId });
     } catch (error) {
       console.error("Error during connection process:", error);
-
-      let errorMessage = "Something went wrong.";
-      if (error.response) {
-        errorMessage = `Server error: ${
-          error.response.data.message || error.response.status
-        }`;
-      } else if (error.request) {
-        errorMessage = "No response from server. Please check your connection.";
-      } else {
-        errorMessage = error.message;
-      }
-
-      Alert.alert("Error", errorMessage);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Something went wrong."
+      );
     } finally {
       setIsLoading((prev) => ({ ...prev, [receiverId]: false }));
     }
   };
 
-  // Travelers Data (Includes new travelers)
   const travelersData = [
     { id: "user123", name: "Jessie", tripName: "LADAKH" },
     { id: "user456", name: "Andrew", tripName: "ARGENTINA" },
@@ -158,41 +150,38 @@ const Connect = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Render Posted Trips */}
         {postedTrips.map((trip, index) => (
           <TravelCard
             key={`posted-${index}`}
-            image={`https://source.unsplash.com/featured/?travel,${trip.location}`}
+            image={predefinedImages[trip.location] || getRandomImage()}
             title={trip.location}
-            profileImage={`https://randomuser.me/api/portraits/men/${index}.jpg`}
+            profileImage={getRandomProfile(index)}
             name="You"
             description={`Explore ${trip.location} from ${trip.startDate} to ${trip.endDate}.`}
             tripDates={`${trip.startDate} - ${trip.endDate}`}
             groupSize="1/4"
-            profiles={["https://randomuser.me/api/portraits/women/45.jpg"]}
+            profiles={[getRandomProfile(index + 10)]}
             onConnect={() => console.log("Connect clicked")}
           />
         ))}
 
-        {/* Render Travelers */}
         {travelersData.map((traveler, index) => (
           <TravelCard
             key={`traveler-${index}`}
-            image={`https://source.unsplash.com/featured/?travel,${traveler.tripName}`}
+            image={predefinedImages[traveler.tripName] || getRandomImage()}
             title={traveler.tripName}
-            profileImage={`https://randomuser.me/api/portraits/men/${index}.jpg`}
+            profileImage={getRandomProfile(index)}
             name={traveler.name}
             description={`Join ${traveler.name} on a trip to ${traveler.tripName}!`}
             tripDates="TBD"
             groupSize="1/4"
-            profiles={["https://randomuser.me/api/portraits/women/45.jpg"]}
+            profiles={[getRandomProfile(index + 10)]}
             onConnect={() => handleConnect(traveler.id, traveler.tripName)}
             isLoading={isLoading[traveler.id]}
           />
         ))}
       </ScrollView>
 
-      {/* Fixed Taskbar */}
       <View style={styles.taskbarContainer}>
         <Taskbar />
       </View>
@@ -233,22 +222,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: "#ddd",
-    elevation: 5,
-  },
-  floatingButton: {
-    position: "absolute",
-    bottom: 90,
-    right: 20,
-    backgroundColor: "#007AFF",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
     elevation: 5,
   },
 });

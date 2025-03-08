@@ -258,12 +258,12 @@ const HomeScreen = ({ navigation }) => {
           style={styles.floatingButton}
           onPress={() => router.push("/pro")}
         >
-          <FontAwesome5
-            name="suitcase-rolling"
-            size={24}
-            color="rgb(5, 10, 59)"
+          <Image
+            source={require("../assets/images/backpack.png")}
+            style={{ width: 25, height: 25 }}
           />
-          <Text style={styles.buttonText}>PRO</Text>
+
+          <Text style={styles.buttonText}>Go Pro</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     right: 10,
   },
   floatingButton: {
-    backgroundColor: "#ffa952",
+    backgroundColor: "#defcf9",
     width: 70,
     height: 70,
     borderRadius: 35,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: "rgb(5, 10, 59)",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "bold",
     marginTop: 2,
   },

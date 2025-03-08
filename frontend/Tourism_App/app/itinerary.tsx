@@ -31,6 +31,42 @@ const ItineraryScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [memberCount, setMemberCount] = useState("");
+  const handleSaveItinerary = async () => {
+    if (!startDate || !endDate) return;
+
+    const daysCount =
+      differenceInDays(new Date(endDate), new Date(startDate)) + 1;
+    const timeline = Array.from({ length: daysCount }).map((_, index) => {
+      const currentDate = addDays(new Date(startDate), index);
+      return {
+        date: format(currentDate, "yyyy-MM-dd"),
+        location: location,
+      };
+    });
+
+    const itineraryData = {
+      id: new Date().getTime().toString(),
+      location,
+      startDate,
+      endDate,
+      timeline,
+    };
+
+    try {
+      let savedItineraries = await AsyncStorage.getItem("savedItineraries");
+      savedItineraries = savedItineraries ? JSON.parse(savedItineraries) : [];
+
+      savedItineraries.push(itineraryData);
+      await AsyncStorage.setItem(
+        "savedItineraries",
+        JSON.stringify(savedItineraries)
+      );
+
+      alert("Itinerary saved successfully!");
+    } catch (error) {
+      console.error("Error saving itinerary:", error);
+    }
+  };
 
   const handlePost = async () => {
     // Show the modal instead of immediately posting
@@ -195,7 +231,7 @@ const ItineraryScreen = () => {
       </ScrollView>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={handleSaveItinerary}>
           <Text style={styles.buttonText}>Save</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={handlePost}>

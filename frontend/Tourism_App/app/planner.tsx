@@ -1,54 +1,88 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   TouchableOpacity,
   Text,
   StyleSheet,
-  ActivityIndicator,
   Animated,
+  Easing,
 } from "react-native";
-import { useRouter } from "expo-router"; // Import useRouter
+import { useRouter } from "expo-router";
 import LocationStep from "./multistep_Planner/location";
 import DateStep from "./multistep_Planner/date";
 import TripPlanningScreen from "./multistep_Planner/kindOfTrip";
 import InterestSelection from "./multistep_Planner/interest";
 import { Image } from "expo-image";
-const loadingMessages = [
-  "Working on it...",
-  "Almost there...",
-  "Finalizing your itinerary...",
+import {
+  MaterialIcons,
+  FontAwesome5,
+  Ionicons,
+  Feather,
+} from "@expo/vector-icons";
+
+// Loading steps
+const loadingSteps = [
+  {
+    text: "Scanning Locations",
+    icon: "location-searching",
+    type: MaterialIcons,
+  },
+  { text: "Fetching live weather data", icon: "cloud-sun", type: FontAwesome5 },
+  { text: "Finding top rated stays", icon: "hotel", type: MaterialIcons },
+  { text: "Assembling Your Travel Blueprint", icon: "map", type: Ionicons },
+  { text: "Finalizing your itinerary", icon: "check-circle", type: Feather },
 ];
 
 const MultiStepForm = () => {
-  const router = useRouter(); // Get router instance
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [messageIndex, setMessageIndex] = useState(0);
-  const spinAnim = useRef(new Animated.Value(0)).current;
-
-  const [formData, setFormData] = useState({
-    location: "",
-    date: "",
-    kind_of_trip: "",
-    travelingWithPet: "",
-    interests: [],
-  });
+  const [currentLoadingStep, setCurrentLoadingStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [formData, setFormData] = useState({});
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     if (loading) {
-      const messageInterval = setInterval(() => {
-        setMessageIndex((prev) => (prev + 1) % loadingMessages.length);
-      }, 1500);
+      let stepIndex = 0;
+      setCompletedSteps([stepIndex]);
 
+      const stepInterval = setInterval(() => {
+        stepIndex++;
+        setCompletedSteps((prev) => [...prev, stepIndex]);
+        setCurrentLoadingStep(stepIndex);
+
+        if (stepIndex === loadingSteps.length) {
+          clearInterval(stepInterval);
+          setTimeout(() => {
+            setLoading(false);
+            router.push({ pathname: "/itinerary", params: formData });
+          }, 1000);
+        }
+      }, 1200);
+
+      return () => clearInterval(stepInterval);
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    if (loading) {
       Animated.loop(
-        Animated.timing(spinAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        })
+        Animated.sequence([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 800,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+        ])
       ).start();
-
-      return () => clearInterval(messageInterval);
     }
   }, [loading]);
 
@@ -66,12 +100,8 @@ const MultiStepForm = () => {
 
   const handleSubmit = () => {
     setLoading(true);
-
-    setTimeout(() => {
-      console.log("Final Data Sent to ML Model:", formData);
-      setLoading(false);
-      router.push({ pathname: "/itinerary", params: formData }); // Navigate to itinerary page with data
-    }, 3000);
+    setCompletedSteps([]);
+    setCurrentLoadingStep(0);
   };
 
   const renderStepContent = () => {
@@ -115,21 +145,52 @@ const MultiStepForm = () => {
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loaderContainer}>
-          {/* GIF Loader */}
+          {/* Loader GIF */}
           <Image
-            source={require("../assets/images/loading2.gif")} // Replace with the actual path to your GIF
-            style={styles.loaderGif}
+            source={require("../assets/images/loading2.gif")}
+            style={styles.loaderIcon}
           />
 
-          {/* Loading Message */}
-          <Text style={styles.loaderMessage}>
-            {loadingMessages[messageIndex]}
-          </Text>
+          {/* Loader Title */}
+          <Text style={styles.loaderTitle}>Generating Itinerary...</Text>
 
-          {/* Travel Quote */}
-          <Text style={styles.loaderQuote}>
-            “Once a year, go someplace you’ve never been before” ✈️
-          </Text>
+          {/* Loading Steps */}
+          {loadingSteps.map((step, index) => {
+            const IconComponent = step.type;
+            return (
+              <View key={index} style={styles.loadingStep}>
+                {/* Icon */}
+                <View style={styles.iconColumn}>
+                  <IconComponent
+                    name={step.icon}
+                    size={24}
+                    color={
+                      completedSteps.includes(index) ? "#ffa952" : "#cccccc"
+                    }
+                  />
+                </View>
+
+                {/* Step Text */}
+                <View style={styles.textColumn}>
+                  <Text
+                    style={[
+                      styles.loaderMessage,
+                      completedSteps.includes(index) && styles.completedMessage,
+                    ]}
+                  >
+                    {step.text}
+                  </Text>
+                </View>
+
+                {/* Checkmark */}
+                <View style={styles.checkColumn}>
+                  <Text style={styles.checkmark}>
+                    {completedSteps.includes(index) ? "✅" : "○"}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
       ) : (
         <>
@@ -149,6 +210,7 @@ const MultiStepForm = () => {
 
 export default MultiStepForm;
 
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -163,36 +225,52 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
-  circularLoader: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 6,
-    borderColor: "#ffa952",
-    borderTopColor: "transparent",
-    marginBottom: 20,
+  loaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#10316b",
+    marginBottom: 15,
   },
-  loaderGif: {
-    width: 300, // Adjust size as needed
-    height: 300, // Adjust size as needed
-    marginBottom: 20,
+  loadingStep: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  iconColumn: {
+    width: 40,
+    alignItems: "center",
+  },
+  textColumn: {
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  checkColumn: {
+    width: 40,
+    alignItems: "center",
   },
   loaderMessage: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#ffa952",
-    marginBottom: 10,
+    fontWeight: "600",
+    color: "#777",
   },
-  loaderQuote: {
-    fontSize: 16,
-    color: "#333",
-    fontStyle: "italic",
-    textAlign: "center",
-    width: "80%",
+  completedMessage: {
+    color: "#10316b",
+  },
+  checkmark: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  loaderIcon: {
+    width: 200,
+    height: 200,
+    marginBottom: 15,
   },
   footer: {
     height: 60,

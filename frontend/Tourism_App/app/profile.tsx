@@ -8,14 +8,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import * as ImagePicker from "expo-image-picker";
-import Taskbar from "./components/taskbar";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
 
-const Profile = ({ navigation }) => {
+const Profile = () => {
   const [profileImage, setProfileImage] = useState(
     require("../assets/images/default-avatar.png")
   );
@@ -27,7 +24,7 @@ const Profile = ({ navigation }) => {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
-          navigation.replace("SignIn");
+          router.replace("/sign-in");
           return;
         }
         const response = await fetch(
@@ -61,135 +58,205 @@ const Profile = ({ navigation }) => {
     router.replace("/sign-in");
   };
 
-  const buttons = [
-    { text: "Edit Profile", icon: "create-outline", route: "/profile-edit" },
-    { text: "Show History", icon: "time-outline", route: "/" },
-    { text: "Notifications", icon: "notifications-outline", route: "/Request" },
-    { text: "Privacy & Security", icon: "lock-closed-outline" },
-    { text: "Language", icon: "globe-outline" },
-  ];
-
   return (
-    <LinearGradient colors={["#fff", "#79c2d0", "#113f67"]} style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
-        {loading ? (
-          <ActivityIndicator size="large" color="#113f67" />
-        ) : user ? (
-          <>
-            <View style={styles.profileImageContainer}>
-              <Image source={profileImage} style={styles.profileImage} />
-              <Text style={styles.username}>{user.name}</Text>
-              <Text style={styles.email}>{user.email}</Text>
-            </View>
+    <SafeAreaView style={styles.container}>
+      {loading ? (
+        <ActivityIndicator size="large" color="#113f67" />
+      ) : user ? (
+        <>
+          {/* Background Cover */}
+          <View style={styles.headerBackground} />
 
-            <View style={styles.buttonContainer}>
-              {buttons.map((btn, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.button}
-                  onPress={() => btn.route && router.push(btn.route)}
-                >
-                  <View style={styles.buttonContent}>
-                    <Text style={styles.buttonText}>{btn.text}</Text>
-                    <Text style={styles.divider}>|</Text>
-                    <Ionicons name={btn.icon} size={20} color="#fff" />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-
+          {/* Profile Section */}
+          <View style={styles.profileContainer}>
+            <Image source={profileImage} style={styles.profileImage} />
+            <Text style={styles.username}>{user.name}</Text>
+            <Text style={styles.email}>{user.email}</Text>
             <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
+              style={styles.editProfileButton}
+              onPress={() => router.push("/profile-edit")}
             >
-              <Text style={styles.logoutText}>Logout</Text>
+              <Text style={styles.editProfileText}>Edit Profile</Text>
             </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={{ color: "#113f67", fontSize: 18 }}>
-            Failed to load user data
-          </Text>
-        )}
-      </SafeAreaView>
-      <Taskbar />
-    </LinearGradient>
+          </View>
+
+          {/* Options Section */}
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/History")}
+            >
+              <Ionicons name="time-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Show History</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Request")}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="lock-closed-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Privacy & Security</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="globe-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Language</Text>
+              <Text style={styles.optionText}>English</Text>
+            </TouchableOpacity>
+
+            {/* New Buttons */}
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="card-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Your Wallet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="help-circle-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Help & Support</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="document-text-outline" size={22} color="#333" />
+              <Text style={styles.menuText}>Terms & Conditions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.menuItem, styles.lastItem]}>
+              <Ionicons
+                name="information-circle-outline"
+                size={22}
+                color="#333"
+              />
+              <Text style={styles.menuText}>About Us</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <Text style={styles.errorText}>Failed to load user data</Text>
+      )}
+    </SafeAreaView>
   );
 };
 
+export default Profile;
+
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    padding: 20,
+    backgroundColor: "#F5F5F5",
   },
-  profileImageContainer: {
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    width: "100%",
+    height: "30%",
+    backgroundColor: "#10316b",
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+  },
+  profileContainer: {
     alignItems: "center",
     marginTop: 50,
+    backgroundColor: "#FFF",
+    paddingVertical: 20,
+    paddingHorizontal: 30,
+    borderRadius: 15,
+    alignSelf: "center",
+    width: "90%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: "#113f67",
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: "#10316b",
   },
   username: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
+    color: "#333",
     marginTop: 10,
-    color: "#113f67",
   },
   email: {
-    fontSize: 16,
-    color: "#113f67",
-    marginTop: 5,
+    fontSize: 14,
+    color: "#666",
   },
-  buttonContainer: {
-    marginTop: 30,
-    width: "80%",
-    top: 8,
-  },
-  button: {
-    backgroundColor: "#113f67",
-    borderRadius: 25,
-    marginBottom: 15,
-    paddingVertical: 15,
+  editProfileButton: {
+    marginTop: 10,
+    backgroundColor: "#10316b",
+    paddingVertical: 8,
     paddingHorizontal: 20,
-    marginTop: 5,
+    borderRadius: 20,
   },
-  buttonContent: {
+  editProfileText: {
+    color: "#FFF",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  section: {
+    backgroundColor: "#FFF",
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 20,
+    marginHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
   },
-  buttonText: {
-    fontSize: 18,
-    color: "#fff",
-    fontWeight: "400",
+  lastItem: {
+    borderBottomWidth: 0,
+  },
+  menuText: {
+    fontSize: 16,
+    color: "#333",
+    marginLeft: 10,
     flex: 1,
-    textAlign: "left",
   },
-  divider: {
-    color: "#fff",
-    fontSize: 18,
-    paddingHorizontal: 10,
+  optionText: {
+    fontSize: 16,
+    color: "#666",
   },
   logoutButton: {
-    position: "absolute",
-    bottom: 80,
+    backgroundColor: "#E53935",
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 10,
     alignItems: "center",
-    width: "50%",
-    backgroundColor: "rgba(181, 16, 16, 0.8)",
-    borderWidth: 2,
-    borderColor: "#be3144",
+    marginTop: 15,
+    marginHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   logoutText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#fff",
     fontWeight: "bold",
   },
+  errorText: {
+    color: "#113f67",
+    fontSize: 18,
+    textAlign: "center",
+    marginTop: 20,
+  },
 });
-
-export default Profile;
