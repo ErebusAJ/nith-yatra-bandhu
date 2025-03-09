@@ -72,7 +72,7 @@ func RegisterRoutes(r *gin.Engine) {
 		protected.GET("/guide/", apiCfg.getGuideDetails)
 
 		// AI plan generaet
-		protected.GET("/ai-planner", apiCfg.generatePlan)
+		protected.POST("/ai-planner", apiCfg.generatePlan)
 	}
 
 	// User Password Reset Routes
