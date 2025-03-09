@@ -1,6 +1,6 @@
-Below is a sample README.md for your GitHub repository:
+<div style="text-align: center;"> <img src="screenshots/yatra-bandhu.png" alt="Description" width="400" height="400" ali> </div>
 
----
+<div style="text-align: center;"> <img src="screenshots/gemini.svg" alt="Description" width="300" height="200"> <img src="screenshots/cloudflare.svg" alt="Description" width="300" height="200"> </div>
 
 # Travel Buddy
 
@@ -55,6 +55,22 @@ Travel Buddy helps users plan their trips by automatically generating detailed i
 
 - **Travel Risk Analysis:**  
   Calculates a risk factor based on weather conditions to provide safety recommendations.
+
+## Track Prizes
+
+In this app form track prizes we have  used Gemini API and Cloudflare Workers AI to process geolocation, weather, price tracking, and other travel-related data to produce detailed AI plans.
+
+### 1. ClouFlare's Workers AI
+  **It has been used specifically in AI Plan generation, we have extended capabilities of mistral-7b model to generate a personalized travel itinerary**
+  `ai-model/model`
+
+   ![alt text](screenshots/image.png)
+
+### 2. Gemini API
+  **Gemini has has been used to sanatize the response of cloudflare's worker AI. The plan generated is not in ideal format so we have leveraged working of gemini to give it a proper structure and send as a reponse to our app.**
+
+   ![alt text](screenshots/image1.png)
+
 
 ## Installation
 
