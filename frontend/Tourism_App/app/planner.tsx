@@ -56,8 +56,9 @@ const MultiStepForm = () => {
           clearInterval(stepInterval);
           setTimeout(() => {
             setLoading(false);
+            // Pass formData to the next page via router.push
             router.push({ pathname: "/itinerary", params: formData });
-          }, 1000);
+          }, 3000);
         }
       }, 1200);
 
@@ -145,21 +146,15 @@ const MultiStepForm = () => {
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loaderContainer}>
-          {/* Loader GIF */}
           <Image
             source={require("../assets/images/loading2.gif")}
             style={styles.loaderIcon}
           />
-
-          {/* Loader Title */}
           <Text style={styles.loaderTitle}>Generating Itinerary...</Text>
-
-          {/* Loading Steps */}
           {loadingSteps.map((step, index) => {
             const IconComponent = step.type;
             return (
               <View key={index} style={styles.loadingStep}>
-                {/* Icon */}
                 <View style={styles.iconColumn}>
                   <IconComponent
                     name={step.icon}
@@ -169,8 +164,6 @@ const MultiStepForm = () => {
                     }
                   />
                 </View>
-
-                {/* Step Text */}
                 <View style={styles.textColumn}>
                   <Text
                     style={[
@@ -181,8 +174,6 @@ const MultiStepForm = () => {
                     {step.text}
                   </Text>
                 </View>
-
-                {/* Checkmark */}
                 <View style={styles.checkColumn}>
                   <Text style={styles.checkmark}>
                     {completedSteps.includes(index) ? "✅" : "○"}

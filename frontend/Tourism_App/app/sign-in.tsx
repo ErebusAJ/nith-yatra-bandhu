@@ -72,10 +72,7 @@ const SignIn = () => {
   };
 
   return (
-    <LinearGradient
-      colors={["#0d1b2a", "#53a8b6", "#fdb44b"]}
-      style={{ flex: 1 }}
-    >
+    <LinearGradient colors={["#0d1b2a", "#53a8b6", "#fff"]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.logoContainer}>
           <Image
